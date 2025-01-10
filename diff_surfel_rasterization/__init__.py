@@ -12,7 +12,7 @@
 from typing import NamedTuple
 import torch.nn as nn
 import torch
-from diff_surfel_rasterization_cent_converge import _C
+from diff_surfel_rasterization import _C
 ##from . import _C
 
 def cpu_deep_copy_tuple(input_tuple):
