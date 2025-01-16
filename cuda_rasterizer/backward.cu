@@ -159,10 +159,9 @@ renderCUDA(
 	const float* __restrict__ depths,
 	const float* __restrict__ final_Ts,
 	const uint32_t* __restrict__ n_contrib,
-	const uint32_t* __restrict__ n_converge,  //在完整的高斯排列中，最后一个起作用的高斯的index
+	const uint32_t* __restrict__ n_converge,
 	const float* __restrict__ dL_dpixels,
 	const float* __restrict__ dL_depths,
-	const float* __restrict__ dL_dpixalign,
 	const float* __restrict__ dL_dpixconverge,
 	float * __restrict__ dL_dtransMat,
 	float3* __restrict__ dL_dmean2D,
@@ -198,7 +197,6 @@ renderCUDA(
 	__shared__ float3 collected_Tw[BLOCK_SIZE];
 	// __shared__ float collected_depths[BLOCK_SIZE];
 
-	__shared__ float collected_cent[BLOCK_SIZE];
 	__shared__ float3 collected_gaussianWorld[BLOCK_SIZE];
 
 	// In the forward, we stored the final value for T, the
@@ -222,28 +220,22 @@ renderCUDA(
 	float dL_dnormal2D[3];
 	const int median_contributor = inside ? n_contrib[pix_id + H * W] : 0;
 	float dL_dmedian_depth;
-	float dL_dmax_dweight;
-	float dL_dpixAlign;
 	float dL_dpixConverge;
 
 	if (inside) {
 		dL_ddepth = dL_depths[DEPTH_OFFSET * H * W + pix_id];
 		dL_daccum = dL_depths[ALPHA_OFFSET * H * W + pix_id];
 		dL_dreg = dL_depths[DISTORTION_OFFSET * H * W + pix_id];
-		dL_dpixAlign = dL_dpixalign[pix_id];
 		dL_dpixConverge = dL_dpixconverge[pix_id];
 		for (int i = 0; i < 3; i++) 
 			dL_dnormal2D[i] = dL_depths[(NORMAL_OFFSET + i) * H * W + pix_id];
 
 		dL_dmedian_depth = dL_depths[MIDDEPTH_OFFSET * H * W + pix_id];
-		// dL_dmax_dweight = dL_depths[MEDIAN_WEIGHT_OFFSET * H * W + pix_id];
 	}
 
 	// for compute gradient with respect to depth and normal
 	float last_depth = 0;
 	float last_normal[3] = { 0 };  
-	float last_cent = 0;
-	float last_align = 0;
 
 	float last_convergeDepth = 0;
     float last_G = 0;
@@ -251,7 +243,6 @@ renderCUDA(
 	float accum_depth_rec = 0;
 	float accum_alpha_rec = 0;
 	float accum_normal_rec[3] = {0};
-	float accum_rec_cent = 0;
 
 	// for compute gradient with respect to the distortion map
 	const float final_D = inside ? final_Ts[pix_id + H * W] : 0;
@@ -289,7 +280,6 @@ renderCUDA(
 			collected_Tu[block.thread_rank()] = {transMats[9 * coll_id+0], transMats[9 * coll_id+1], transMats[9 * coll_id+2]};
 			collected_Tv[block.thread_rank()] = {transMats[9 * coll_id+3], transMats[9 * coll_id+4], transMats[9 * coll_id+5]};
 			collected_Tw[block.thread_rank()] = {transMats[9 * coll_id+6], transMats[9 * coll_id+7], transMats[9 * coll_id+8]};
-			collected_cent[block.thread_rank()] = cent[coll_id];
 			collected_gaussianWorld[block.thread_rank()] = gaussian_world[coll_id];
 			for (int i = 0; i < C; i++)
 				collected_colors[i * BLOCK_SIZE + block.thread_rank()] = colors[coll_id * C + i];
@@ -343,7 +333,7 @@ renderCUDA(
 
 			// compute intersection and depth
 			float rho = min(rho3d, rho2d);
-			float c_d = (rho3d <= rho2d) ? (s.x * Tw.x + s.y * Tw.y) + Tw.z : Tw.z; //这里的c_d就是depth；反向的时候，把这个高斯的前后的高斯的depth也计算出来，把后一个高斯的opa引入，这样这个高斯的相关梯度就完整了
+			float c_d = (rho3d <= rho2d) ? (s.x * Tw.x + s.y * Tw.y) + Tw.z : Tw.z;
 			if (c_d < near_n) continue;
 			float4 nor_o = collected_normal_opacity[j];
 			float normal[3] = {nor_o.x, nor_o.y, nor_o.z};
@@ -362,17 +352,14 @@ renderCUDA(
 
 			T = T / (1.f - alpha);
 			const float dchannel_dcolor = alpha * T;  
-			const float w = alpha * T;
 
 			float dL_dz = 0.0f;
 
-			//在前面已经把过滤走完了
-			//在这里计算聚拢，因为是从后往前，我们需要把当前高斯的depth参与计算损失的，前后高斯的depth和opa引入；我们容易拿到后面的一个，但前面的那一个还是需要遍历
-			if (contributor < final_converge) { //找到最后一个之前的了
+			if (contributor < final_converge) {
 				float front_depth = -1.0f;
                 float front_normal[3] = {0.0f, 0.0f, 0.0f};
                 float front_G = 0.0f;
-                for (int ll = j+1; !done && ll < min(BLOCK_SIZE, toDo); ll++){  //寻找在完整排列中，前面第一个符合要求的高斯
+                for (int ll = j+1; !done && ll < min(BLOCK_SIZE, toDo); ll++) {
 					const float2 xy_front = collected_xy[ll];
 					const float3 Tu_front = collected_Tu[ll];
 					const float3 Tv_front = collected_Tv[ll];
@@ -404,13 +391,13 @@ renderCUDA(
 					const float alpha_front = min(0.99f, opa_front * front_G);
 					if (alpha_front < 1.0f / 255.0f)
 						continue;
-					front_depth = c_d_front;  //这就是前面符合要求的第一个的深度
+					front_depth = c_d_front;
 					break;
 				}
 
-                constexpr float forward_scale = 1.25; // 向前的作用力更大
+                constexpr float forward_scale = 1.25; // Encourage convergence toward camera
 
-                if (front_depth >= 0.0f) { // 找到了前面的高斯
+                if (front_depth >= 0.0f) {
                     float front_grad = min(G, front_G) * 2  * (c_d - front_depth) * dL_dpixConverge;
                     if (c_d > front_depth) {
                         front_grad *= forward_scale;
@@ -418,7 +405,6 @@ renderCUDA(
                     front_grad = abs(c_d - front_depth) > ConvergeThreshold ? 0.0 : front_grad;
                     dL_dz += front_grad;
 
-                    // 后面的高斯
                     if (contributor < final_converge - 1) {
                         float back_grad = min(G, last_G) * 2  * (c_d - last_convergeDepth) * dL_dpixConverge;
                         if (c_d > last_convergeDepth) {
@@ -427,9 +413,6 @@ renderCUDA(
                         back_grad = abs(c_d - last_convergeDepth) > ConvergeThreshold ? 0.0 : back_grad;
                         dL_dz += back_grad;
                     }
-                }
-                else {
-                    // 没找到前面的高斯
                 }
 
 				last_convergeDepth = c_d;
@@ -905,7 +888,6 @@ void BACKWARD::render(
 	const uint32_t* n_converge,
 	const float* dL_dpixels,
 	const float* dL_depths,
-	const float* dL_dpixalign,
 	const float* dL_dpixconverge,
 	float * dL_dtransMat,
 	float3* dL_dmean2D,
@@ -935,7 +917,6 @@ void BACKWARD::render(
 		n_converge,
 		dL_dpixels,
 		dL_depths,
-		dL_dpixalign,
 		dL_dpixconverge,
 		dL_dtransMat,
 		dL_dmean2D,

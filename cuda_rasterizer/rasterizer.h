@@ -51,10 +51,7 @@ namespace CudaRasterizer
 			const bool prefiltered,
 			float* out_color,
 			float* out_others,
-
-			float* out_align,
 			float* out_converge,
-
 			int* radii = nullptr,
 			bool debug = false);
 
@@ -80,18 +77,13 @@ namespace CudaRasterizer
 			char* image_buffer,
 			const float* dL_dpix,
 			const float* dL_depths,
-
-			const float* dL_dpixalign,
 			const float* dL_dpixconverge,
-
 			float* dL_dmean2D,
 			float* dL_dnormal,
 			float* dL_dopacity,
 			float* dL_dcolor,
-
 			float* dL_dcent,
 			float* dL_dgaussian_world,
-
 			float* dL_dmean3D,
 			float* dL_dtransMat,
 			float* dL_dsh,

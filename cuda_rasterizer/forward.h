@@ -73,7 +73,6 @@ namespace FORWARD
 		const float* cam_pos,
 		float* out_color,
 		float* out_others,
-		float* out_align,
 		float* out_converge);
 }
 

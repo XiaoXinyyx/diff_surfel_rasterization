@@ -226,7 +226,6 @@ int CudaRasterizer::Rasterizer::forward(
 	const bool prefiltered,
 	float* out_color,
 	float* out_others,
-	float* out_align,
 	float* out_converge,
 	int* radii,
 	bool debug)
@@ -359,7 +358,6 @@ int CudaRasterizer::Rasterizer::forward(
 
 		out_color,
 		out_others,
-        out_align,
         out_converge), debug)
 
 	return num_rendered;
@@ -389,18 +387,13 @@ void CudaRasterizer::Rasterizer::backward(
 	char* img_buffer,
 	const float* dL_dpix,
 	const float* dL_depths,
-	
-	const float* dL_dpixalign,
 	const float* dL_dpixconverge,
-
 	float* dL_dmean2D,
 	float* dL_dnormal,
 	float* dL_dopacity,
 	float* dL_dcolor,
-
 	float* dL_dcent,
 	float* dL_dgaussian_world,
-
 	float* dL_dmean3D,
 	float* dL_dtransMat,
 	float* dL_dsh,
@@ -454,7 +447,6 @@ void CudaRasterizer::Rasterizer::backward(
 		dL_dpix,
 		dL_depths,
 
-		dL_dpixalign,
 		dL_dpixconverge,
 
 		dL_dtransMat,
