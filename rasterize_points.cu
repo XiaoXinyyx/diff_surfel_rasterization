@@ -39,7 +39,7 @@ std::function<char*(size_t N)> resizeFunctional(torch::Tensor& t) {
 std::tuple<int, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor>
 RasterizeGaussiansCUDA(
 	const torch::Tensor& background,
-	const torch::Tensor& ndc2world,  //ndc2world是怎么组织的，要向projmatrix参考
+	const torch::Tensor& ndc2world,
 	const torch::Tensor& means3D,
 	const torch::Tensor& colors,
 	const torch::Tensor& opacity,
@@ -87,8 +87,7 @@ RasterizeGaussiansCUDA(
   torch::Tensor out_color = torch::full({NUM_CHANNELS, H, W}, 0.0, float_opts);
   torch::Tensor out_others = torch::full({3+3+1, H, W}, 0.0, float_opts);
 
-  //输出的离心率
-  torch::Tensor out_centrate = torch::full({1, H, W}, 0.0, float_opts);
+  // TODO Delete
   torch::Tensor out_align = torch::full({1, H, W}, 0.0, float_opts);
   torch::Tensor out_converge = torch::full({1, H, W}, 0.0, float_opts);
 
@@ -137,14 +136,13 @@ RasterizeGaussiansCUDA(
 		out_color.contiguous().data<float>(),
 		out_others.contiguous().data<float>(),
 
-		out_centrate.contiguous().data<float>(),
 		out_align.contiguous().data<float>(),
 		out_converge.contiguous().data<float>(),
 
 		radii.contiguous().data<int>(),
 		debug);
   }
-  return std::make_tuple(rendered, out_color, out_others, out_centrate, out_align, out_converge, radii, geomBuffer, binningBuffer, imgBuffer);
+  return std::make_tuple(rendered, out_color, out_others, out_align, out_converge, radii, geomBuffer, binningBuffer, imgBuffer);
 }
 
 std::tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor>
@@ -164,7 +162,6 @@ std::tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Te
 	const float tan_fovy,
 	const torch::Tensor& dL_dout_color,
 	const torch::Tensor& dL_dout_others,
-	const torch::Tensor& dL_dout_centrate,
 	const torch::Tensor& dL_dout_align,
 	const torch::Tensor& dL_dout_converge,
 	const torch::Tensor& sh,
@@ -242,7 +239,6 @@ std::tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Te
 	  dL_dout_color.contiguous().data<float>(),
 	  dL_dout_others.contiguous().data<float>(),
 
-	  dL_dout_centrate.contiguous().data<float>(),
 	  dL_dout_align.contiguous().data<float>(),
 	  dL_dout_converge.contiguous().data<float>(),
 

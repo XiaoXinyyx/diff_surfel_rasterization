@@ -64,7 +64,6 @@ namespace FORWARD
 		const float* transMats,
 		const float* depths,
 		const float4* normal_opacity,
-		const float* cent,
 		const float3* gaussian_world,
 		float* final_T,
 		uint32_t* n_contrib,
@@ -74,7 +73,6 @@ namespace FORWARD
 		const float* cam_pos,
 		float* out_color,
 		float* out_others,
-		float* out_centrate,
 		float* out_align,
 		float* out_converge);
 }

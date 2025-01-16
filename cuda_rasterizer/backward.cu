@@ -162,7 +162,6 @@ renderCUDA(
 	const uint32_t* __restrict__ n_converge,  //在完整的高斯排列中，最后一个起作用的高斯的index
 	const float* __restrict__ dL_dpixels,
 	const float* __restrict__ dL_depths,
-	const float* __restrict__ dL_dpixcentrate,
 	const float* __restrict__ dL_dpixalign,
 	const float* __restrict__ dL_dpixconverge,
 	float * __restrict__ dL_dtransMat,
@@ -224,7 +223,6 @@ renderCUDA(
 	const int median_contributor = inside ? n_contrib[pix_id + H * W] : 0;
 	float dL_dmedian_depth;
 	float dL_dmax_dweight;
-	float dL_dpixCent;
 	float dL_dpixAlign;
 	float dL_dpixConverge;
 
@@ -232,7 +230,6 @@ renderCUDA(
 		dL_ddepth = dL_depths[DEPTH_OFFSET * H * W + pix_id];
 		dL_daccum = dL_depths[ALPHA_OFFSET * H * W + pix_id];
 		dL_dreg = dL_depths[DISTORTION_OFFSET * H * W + pix_id];
-		dL_dpixCent = dL_dpixcentrate[pix_id];
 		dL_dpixAlign = dL_dpixalign[pix_id];
 		dL_dpixConverge = dL_dpixconverge[pix_id];
 		for (int i = 0; i < 3; i++) 
@@ -501,10 +498,6 @@ renderCUDA(
 				atomicAdd((&dL_dnormal3D[global_id * 3 + ch]), alpha * T * dL_dnormal2D[ch]);
 			}
 
-			// 离心率梯度
-			for(int ch = 0; ch < 1; ch++) {
-				atomicAdd(&(dL_dcent[global_id]), dchannel_dcolor * dL_dpixCent);
-			}
 #endif
 
 			dL_dalpha *= T;
@@ -912,7 +905,6 @@ void BACKWARD::render(
 	const uint32_t* n_converge,
 	const float* dL_dpixels,
 	const float* dL_depths,
-	const float* dL_dpixcentrate,
 	const float* dL_dpixalign,
 	const float* dL_dpixconverge,
 	float * dL_dtransMat,
@@ -943,7 +935,6 @@ void BACKWARD::render(
 		n_converge,
 		dL_dpixels,
 		dL_depths,
-		dL_dpixcentrate,
 		dL_dpixalign,
 		dL_dpixconverge,
 		dL_dtransMat,

@@ -14,7 +14,7 @@
 #include <cstdio>
 #include <tuple>
 #include <string>
-//前向，加离心率的输出	
+
 std::tuple<int, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor>
 RasterizeGaussiansCUDA(
 	const torch::Tensor& background,
@@ -59,8 +59,7 @@ std::tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Te
 	const float tan_fovy,
 	const torch::Tensor& dL_dout_color,
 	const torch::Tensor& dL_dout_others,
-		//加离心率梯度的输入
-	const torch::Tensor& dL_dout_centrate,
+
 	const torch::Tensor& dL_dout_align,
 	const torch::Tensor& dL_dout_converge,
 	

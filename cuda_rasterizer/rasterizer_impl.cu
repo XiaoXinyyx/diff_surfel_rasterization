@@ -200,7 +200,7 @@ CudaRasterizer::BinningState CudaRasterizer::BinningState::fromChunk(char*& chun
 }
 
 // Forward rendering procedure for differentiable rasterization
-// of Gaussians. //可以参考const float* background的处理来处理ndc2world和相机中心
+// of Gaussians.
 int CudaRasterizer::Rasterizer::forward(
 	std::function<char* (size_t)> geometryBuffer,
 	std::function<char* (size_t)> binningBuffer,
@@ -226,7 +226,6 @@ int CudaRasterizer::Rasterizer::forward(
 	const bool prefiltered,
 	float* out_color,
 	float* out_others,
-	float* out_centrate,
 	float* out_align,
 	float* out_converge,
 	int* radii,
@@ -347,7 +346,6 @@ int CudaRasterizer::Rasterizer::forward(
 		geomState.depths,
 		geomState.normal_opacity,
 
-		geomState.cent,
 		geomState.gaussian_world,
 
 		imgState.accum_alpha,
@@ -360,7 +358,9 @@ int CudaRasterizer::Rasterizer::forward(
 		cam_pos,
 
 		out_color,
-		out_others,out_centrate,out_align,out_converge), debug)
+		out_others,
+        out_align,
+        out_converge), debug)
 
 	return num_rendered;
 }
@@ -390,10 +390,8 @@ void CudaRasterizer::Rasterizer::backward(
 	const float* dL_dpix,
 	const float* dL_depths,
 	
-	const float* dL_dpixcentrate,
 	const float* dL_dpixalign,
 	const float* dL_dpixconverge,
-
 
 	float* dL_dmean2D,
 	float* dL_dnormal,
@@ -456,7 +454,6 @@ void CudaRasterizer::Rasterizer::backward(
 		dL_dpix,
 		dL_depths,
 
-		dL_dpixcentrate,
 		dL_dpixalign,
 		dL_dpixconverge,
 

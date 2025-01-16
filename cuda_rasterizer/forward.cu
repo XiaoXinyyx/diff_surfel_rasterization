@@ -321,8 +321,6 @@ renderCUDA(
 	const float* __restrict__ depths,
 	const float4* __restrict__ normal_opacity,  
 
-	const float* __restrict__ cent,
-
 	const float3* __restrict__ gaussian_world,
 	
 	float* __restrict__ final_T,
@@ -336,7 +334,6 @@ renderCUDA(
 
 	float* __restrict__ out_color,
 	float* __restrict__ out_others,
-	float* __restrict__ out_centrate,
 	float* __restrict__ out_align,
 	float* __restrict__ out_converge)
 {
@@ -368,7 +365,6 @@ renderCUDA(
 	__shared__ float3 collected_Tv[BLOCK_SIZE];
 	__shared__ float3 collected_Tw[BLOCK_SIZE];
 
-	__shared__ float collected_cent[BLOCK_SIZE];
 	__shared__ float3 collected_gaussianWorld[BLOCK_SIZE];
 
 	// Initialize helper variables
@@ -392,7 +388,6 @@ renderCUDA(
 	// float median_weight = {0};
 	float median_contributor = 0;
 
-	float Cent = 0;
 	float Align = 0;
 	float Converge = 0;
     float first_depth = 0;
@@ -420,7 +415,6 @@ renderCUDA(
 			collected_xy[block.thread_rank()] = points_xy_image[coll_id];
 			collected_normal_opacity[block.thread_rank()] = normal_opacity[coll_id];
 
-			collected_cent[block.thread_rank()] = cent[coll_id];
 			collected_gaussianWorld[block.thread_rank()] = gaussian_world[coll_id];
 
 			collected_Tu[block.thread_rank()] = {transMats[9 * coll_id+0], transMats[9 * coll_id+1], transMats[9 * coll_id+2]};
@@ -440,7 +434,7 @@ renderCUDA(
 			ndc2world[1], ndc2world[5], ndc2world[9], ndc2world[13],
 			ndc2world[2], ndc2world[6], ndc2world[10], ndc2world[14],
 			ndc2world[3], ndc2world[7], ndc2world[11], ndc2world[15]
-		);//转置了，要变回原来的矩阵
+		);
 		//这里还是要看结果，可能要变成过像素中心的垂直于图像平面的单位向量
 		glm::vec4 pix_center = glm::transpose(ndc2worldP) * ndcP;
 		glm::vec3 pix_Center = {pix_center.x / pix_center.w, pix_center.y / pix_center.w, pix_center.z / pix_center.w};//齐次坐标转变为三维坐标
@@ -550,9 +544,6 @@ renderCUDA(
 				last_converge = contributor;
 			}
 
-            // 离心率
-			Cent += collected_cent[j] * w;
-
  			T = test_T;
 
             last_depth = depth;
@@ -583,7 +574,7 @@ renderCUDA(
 		out_others[pix_id + MIDDEPTH_OFFSET * H * W] = median_depth;
 		out_others[pix_id + DISTORTION_OFFSET * H * W] = distortion;
 
-		out_centrate[pix_id] = Cent;
+        // TODO delete
 		out_align[pix_id] = Align;
 		out_converge[pix_id] = Converge;
 		// out_others[pix_id + MEDIAN_WEIGHT_OFFSET * H * W] = median_weight;
@@ -602,7 +593,6 @@ void FORWARD::render(
 	const float* transMats,
 	const float* depths,
 	const float4* normal_opacity,
-	const float* cent,
 
 	const float3* gaussian_world,
 
@@ -617,7 +607,6 @@ void FORWARD::render(
 
 	float* out_color,
 	float* out_others,
-	float* out_centrate,
 	float* out_align,
 	float* out_converge)
 {
@@ -631,7 +620,6 @@ void FORWARD::render(
 		transMats,
 		depths,
 		normal_opacity,
-		cent,
 		gaussian_world,
 		final_T,
 		n_contrib,
@@ -641,7 +629,6 @@ void FORWARD::render(
 		cam_pos,
 		out_color,
 		out_others,
-		out_centrate,
 		out_align,
 		out_converge);
 }

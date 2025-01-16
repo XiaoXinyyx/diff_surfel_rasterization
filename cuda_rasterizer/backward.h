@@ -43,7 +43,6 @@ namespace BACKWARD
 		const uint32_t* n_converge,
 		const float* dL_dpixels,
 		const float* dL_depths,
-		const float* dL_dpixcentrate,
 		const float* dL_dpixalign,
 		const float* dL_dpixconverge,
 		float * dL_dtransMat,
