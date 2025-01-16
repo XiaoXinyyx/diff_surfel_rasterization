@@ -39,7 +39,6 @@ namespace CudaRasterizer
 		float4* normal_opacity;
 		float* rgb;
 
-		float* cent;
 		float3* gaussian_world;
 
 		uint32_t* point_offsets;

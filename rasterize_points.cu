@@ -114,7 +114,7 @@ RasterizeGaussiansCUDA(
 		binningFunc,
 		imgFunc,
 		P, degree, M,
-		background.contiguous().data<float>(),  //参考background的处理来处理ndc2world和相机中心
+		background.contiguous().data<float>(),
 		ndc2world.contiguous().data<float>(),
 		W, H,
 		means3D.contiguous().data<float>(),
@@ -126,7 +126,7 @@ RasterizeGaussiansCUDA(
 		rotations.contiguous().data_ptr<float>(),
 		transMat_precomp.contiguous().data<float>(), 
 		viewmatrix.contiguous().data<float>(), 
-		projmatrix.contiguous().data<float>(),//这种方式得到的是按行优先的连续位置存储的张量
+		projmatrix.contiguous().data<float>(),
 		campos.contiguous().data<float>(),
 		tan_fovx,
 		tan_fovy,
