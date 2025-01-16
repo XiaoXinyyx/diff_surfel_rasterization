@@ -165,8 +165,7 @@ renderCUDA(
 	float3* __restrict__ dL_dmean2D,
 	float* __restrict__ dL_dnormal3D,
 	float* __restrict__ dL_dopacity,
-	float* __restrict__ dL_dcolors,
-	float3* __restrict__ dL_dgaussian_world)
+	float* __restrict__ dL_dcolors)
 {
 	// We rasterize again. Compute necessary block info.
 	auto block = cg::this_thread_block();
@@ -542,9 +541,6 @@ __device__ void compute_transmat_aabb(
 	const float* viewmatrix, 
 	const int W, const int H, 
 	const float3* dL_dnormals,
-
-	const float3* dL_dgaussian_world,
-
 	const float3* dL_dmean2Ds, 
 	float* dL_dTs, 
 	glm::vec3* dL_dmeans, 
@@ -664,14 +660,7 @@ __device__ void compute_transmat_aabb(
 		(float)glm::dot(dL_dRS[0], R[0]),
 		(float)glm::dot(dL_dRS[1], R[1])
 	);
-
 	dL_dmeans[idx] = glm::vec3(dL_dM[2]);
-
-	//将对齐的梯度传给高斯中心
-	float3 dL_dalignNow = dL_dgaussian_world[idx];
-	dL_dmeans[idx].x += dL_dalignNow.x;
-	dL_dmeans[idx].y += dL_dalignNow.y;
-	dL_dmeans[idx].z += dL_dalignNow.z;
 }
 
 template<int C>
@@ -696,9 +685,6 @@ __global__ void preprocessCUDA(
 	float* dL_dtransMats,
 	const float* dL_dnormal3Ds,
 	float* dL_dcolors,
-
-	float3* dL_dgaussian_world,
-
 	float* dL_dshs,
 	float3* dL_dmean2Ds,
 	glm::vec3* dL_dmean3Ds,
@@ -718,7 +704,6 @@ __global__ void preprocessCUDA(
 		means3D, scales, rotations, 
 		projmatrix, viewmatrix, W, H, 
 		(float3*)dL_dnormal3Ds, 
-		dL_dgaussian_world,
 		dL_dmean2Ds,
 		(dL_dtransMats), 
 		dL_dmean3Ds, 
@@ -758,7 +743,6 @@ void BACKWARD::preprocess(
 	const float* dL_dnormal3Ds,
 	float* dL_dtransMats,
 	float* dL_dcolors,
-	float3* dL_dgaussian_world,
 	float* dL_dshs,
 	glm::vec3* dL_dmean3Ds,
 	glm::vec2* dL_dscales,
@@ -784,7 +768,6 @@ void BACKWARD::preprocess(
 		dL_dtransMats,
 		dL_dnormal3Ds,
 		dL_dcolors,
-		dL_dgaussian_world,
 		dL_dshs,
 		dL_dmean2Ds,
 		dL_dmean3Ds,
@@ -818,8 +801,7 @@ void BACKWARD::render(
 	float3* dL_dmean2D,
 	float* dL_dnormal3D,
 	float* dL_dopacity,
-	float* dL_dcolors,
-	float3* dL_dgaussian_world)
+	float* dL_dcolors)
 {
 	renderCUDA<NUM_CHANNELS> << <grid, block >> >(
 		ranges,
@@ -844,6 +826,5 @@ void BACKWARD::render(
 		dL_dmean2D,
 		dL_dnormal3D,
 		dL_dopacity,
-		dL_dcolors,
-		dL_dgaussian_world);
+		dL_dcolors);
 }
