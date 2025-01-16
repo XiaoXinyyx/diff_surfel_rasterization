@@ -52,7 +52,6 @@ namespace CudaRasterizer
 			float* out_color,
 			float* out_others,
 
-			float* out_centrate,
 			float* out_align,
 			float* out_converge,
 
@@ -82,7 +81,6 @@ namespace CudaRasterizer
 			const float* dL_dpix,
 			const float* dL_depths,
 
-			const float* dL_dpixcentrate,
 			const float* dL_dpixalign,
 			const float* dL_dpixconverge,
 
