@@ -152,8 +152,6 @@ renderCUDA(
 	const float* __restrict__ cam_pos,
 	const float2* __restrict__ points_xy_image,
 	const float4* __restrict__ normal_opacity,
-	const float* __restrict__ cent,
-	const float3* __restrict__ gaussian_world,
 	const float* __restrict__ transMats,
 	const float* __restrict__ colors,
 	const float* __restrict__ depths,
@@ -168,7 +166,6 @@ renderCUDA(
 	float* __restrict__ dL_dnormal3D,
 	float* __restrict__ dL_dopacity,
 	float* __restrict__ dL_dcolors,
-	float* __restrict__ dL_dcent,
 	float3* __restrict__ dL_dgaussian_world)
 {
 	// We rasterize again. Compute necessary block info.
@@ -196,8 +193,6 @@ renderCUDA(
 	__shared__ float3 collected_Tv[BLOCK_SIZE];
 	__shared__ float3 collected_Tw[BLOCK_SIZE];
 	// __shared__ float collected_depths[BLOCK_SIZE];
-
-	__shared__ float3 collected_gaussianWorld[BLOCK_SIZE];
 
 	// In the forward, we stored the final value for T, the
 	// product of all (1 - alpha) factors. 
@@ -259,11 +254,6 @@ renderCUDA(
 	float last_alpha = 0;
 	float last_color[C] = { 0 };
 
-	// Gradient of pixel coordinate w.r.t. normalized 
-	// screen-space viewport corrdinates (-1 to 1)
-	const float ddelx_dx = 0.5 * W;
-	const float ddely_dy = 0.5 * H;
-
 	// Traverse all Gaussians
 	for (int i = 0; i < rounds; i++, toDo -= BLOCK_SIZE)
 	{
@@ -280,7 +270,6 @@ renderCUDA(
 			collected_Tu[block.thread_rank()] = {transMats[9 * coll_id+0], transMats[9 * coll_id+1], transMats[9 * coll_id+2]};
 			collected_Tv[block.thread_rank()] = {transMats[9 * coll_id+3], transMats[9 * coll_id+4], transMats[9 * coll_id+5]};
 			collected_Tw[block.thread_rank()] = {transMats[9 * coll_id+6], transMats[9 * coll_id+7], transMats[9 * coll_id+8]};
-			collected_gaussianWorld[block.thread_rank()] = gaussian_world[coll_id];
 			for (int i = 0; i < C; i++)
 				collected_colors[i * BLOCK_SIZE + block.thread_rank()] = colors[coll_id * C + i];
 				// collected_depths[block.thread_rank()] = depths[coll_id];
@@ -357,7 +346,6 @@ renderCUDA(
 
 			if (contributor < final_converge) {
 				float front_depth = -1.0f;
-                float front_normal[3] = {0.0f, 0.0f, 0.0f};
                 float front_G = 0.0f;
                 for (int ll = j+1; !done && ll < min(BLOCK_SIZE, toDo); ll++) {
 					const float2 xy_front = collected_xy[ll];
@@ -375,12 +363,10 @@ renderCUDA(
 
 					// compute intersection and depth
 					float rho_front = min(rho3d_front, rho2d_front);
-					float c_d_front = (rho3d_front <= rho2d_front) ? (s_front.x * Tw_front.x + s_front.y * Tw_front.y) + Tw_front.z : Tw_front.z; 
+					float c_d_front = (rho3d_front <= rho2d_front) 
+                        ? (s_front.x * Tw_front.x + s_front.y * Tw_front.y) + Tw_front.z : Tw_front.z; 
 					if(c_d_front < near_n) continue;
 					float4 nor_o_front = collected_normal_opacity[ll];
-                    front_normal[0] = nor_o_front.x;
-                    front_normal[1] = nor_o_front.y;
-                    front_normal[2] = nor_o_front.z;
 					float opa_front = nor_o_front.w;
 
 					float power_front = -0.5f * rho_front;
@@ -432,7 +418,7 @@ renderCUDA(
 				last_color[ch] = c;
 
 				const float dL_dchannel = dL_dpixel[ch]; 
-				dL_dalpha += (c - accum_rec[ch]) * dL_dchannel; //通过对alpha求导数就得到，要利用连乘；但这种也是利用了与前无关，与后有关
+				dL_dalpha += (c - accum_rec[ch]) * dL_dchannel;
 				// Update the gradients w.r.t. color of the Gaussian. 
 				// Atomic, since this pixel is just one of potentially
 				// many that were affected by this Gaussian.
@@ -557,7 +543,6 @@ __device__ void compute_transmat_aabb(
 	const int W, const int H, 
 	const float3* dL_dnormals,
 
-	const float* dL_dcent,
 	const float3* dL_dgaussian_world,
 
 	const float3* dL_dmean2Ds, 
@@ -679,72 +664,14 @@ __device__ void compute_transmat_aabb(
 		(float)glm::dot(dL_dRS[0], R[0]),
 		(float)glm::dot(dL_dRS[1], R[1])
 	);
-	//在这里离心率损失回传改变尺度
-	//glm::vec2 dL_dscale = dL_dscales[idx];
-
-
-	//将离心率的梯度增加到尺度的梯度中	
-    float a = std::max(scale.x, scale.y);
-    float b = std::min(scale.x, scale.y);
-	float c;
-
-	if (std::abs(a - b) < 1e-5) {
-        c = 0;
-    } else {
-        c = std::sqrt(a * a - b * b);
-    }
-	//float c = sqrt(a * a - b * b);
-	const float epsilon = 1e-5f;
-
-	// 获取梯度 dL_dcent
-	float dL_dcentNow = dL_dcent[idx]; // 已知的梯度
-
-	// 求 dcent/da 和 dcent/dc
-	float dcent_da = (-c / ((a + epsilon) * (a + epsilon))) + (1.0f / (a + epsilon));
-	float dcent_dc = 1.0f / (a + epsilon);
-
-	// 求 dc/da 和 dc/db
-	float dc_da = a / (c + epsilon);
-	float dc_db = -b / (c + epsilon);
-
-	// 计算 scales.x 和 scales.y 的梯度
-	float dL_da = dL_dcentNow * (dcent_da + dcent_dc * dc_da);
-	float dL_db = dL_dcentNow * dcent_dc * dc_db;
-
-	// 根据 a 和 b 对应 scales.x 和 scales.y 的关系分配梯度
-	//float dL_dscales_x, dL_dscales_y;
-	// dL_dscales[idx].x
-	// dL_dscales[idx].y
-	// glm::vec2 dL_dscale = dL_dscales[idx];
-
-	if (scale.x >= scale.y) {
-		dL_dscales[idx].x += dL_da;
-		dL_dscales[idx].y += dL_db;
-	} else {
-		dL_dscales[idx].x += dL_db;
-		dL_dscales[idx].y += dL_da;
-	}
-
-	// if (scale.x >= scale.y) {
-	// 	dL_dscale->x += dL_da;
-	// 	dL_dscale->y += dL_db;
-	// } else {
-	// 	dL_dscale->x += dL_db;
-	// 	dL_dscale->y += dL_da;
-	// }
-
 
 	dL_dmeans[idx] = glm::vec3(dL_dM[2]);
-
-	
 
 	//将对齐的梯度传给高斯中心
 	float3 dL_dalignNow = dL_dgaussian_world[idx];
 	dL_dmeans[idx].x += dL_dalignNow.x;
 	dL_dmeans[idx].y += dL_dalignNow.y;
 	dL_dmeans[idx].z += dL_dalignNow.z;
-
-
 }
 
 template<int C>
@@ -770,7 +697,6 @@ __global__ void preprocessCUDA(
 	const float* dL_dnormal3Ds,
 	float* dL_dcolors,
 
-	float* dL_dcent,
 	float3* dL_dgaussian_world,
 
 	float* dL_dshs,
@@ -792,7 +718,6 @@ __global__ void preprocessCUDA(
 		means3D, scales, rotations, 
 		projmatrix, viewmatrix, W, H, 
 		(float3*)dL_dnormal3Ds, 
-		dL_dcent,
 		dL_dgaussian_world,
 		dL_dmean2Ds,
 		(dL_dtransMats), 
@@ -802,12 +727,15 @@ __global__ void preprocessCUDA(
 	);
 
 	if (shs)
-		computeColorFromSH(idx, D, M, (glm::vec3*)means3D, *campos, shs, clamped, (glm::vec3*)dL_dcolors, (glm::vec3*)dL_dmean3Ds, (glm::vec3*)dL_dshs);
+		computeColorFromSH(idx, D, M, (glm::vec3*)means3D, *campos, shs, clamped,
+            (glm::vec3*)dL_dcolors, (glm::vec3*)dL_dmean3Ds, (glm::vec3*)dL_dshs);
 	
 	// hack the gradient here for densitification
 	float depth = transMats[idx * 9 + 8];
-	dL_dmean2Ds[idx].x = dL_dtransMats[idx * 9 + 2] * depth * 0.5 * float(W); // to ndc 
-	dL_dmean2Ds[idx].y = dL_dtransMats[idx * 9 + 5] * depth * 0.5 * float(H); // to ndc
+    // to ndc 
+	dL_dmean2Ds[idx].x = dL_dtransMats[idx * 9 + 2] * depth * 0.5 * float(W); 
+    // to ndc
+	dL_dmean2Ds[idx].y = dL_dtransMats[idx * 9 + 5] * depth * 0.5 * float(H); 
 }
 
 
@@ -830,7 +758,6 @@ void BACKWARD::preprocess(
 	const float* dL_dnormal3Ds,
 	float* dL_dtransMats,
 	float* dL_dcolors,
-	float* dL_dcent,
 	float3* dL_dgaussian_world,
 	float* dL_dshs,
 	glm::vec3* dL_dmean3Ds,
@@ -857,7 +784,6 @@ void BACKWARD::preprocess(
 		dL_dtransMats,
 		dL_dnormal3Ds,
 		dL_dcolors,
-		dL_dcent,
 		dL_dgaussian_world,
 		dL_dshs,
 		dL_dmean2Ds,
@@ -868,7 +794,8 @@ void BACKWARD::preprocess(
 }
 
 void BACKWARD::render(
-	const dim3 grid, const dim3 block,
+	const dim3 grid,
+    const dim3 block,
 	const uint2* ranges,
 	const uint32_t* point_list,
 	int W, int H,
@@ -878,8 +805,6 @@ void BACKWARD::render(
 	const float* cam_pos,
 	const float2* means2D,
 	const float4* normal_opacity,
-	const float* cent,
-	const float3* gaussian_world,
 	const float* colors,
 	const float* transMats,
 	const float* depths,
@@ -894,7 +819,6 @@ void BACKWARD::render(
 	float* dL_dnormal3D,
 	float* dL_dopacity,
 	float* dL_dcolors,
-	float* dL_dcent,
 	float3* dL_dgaussian_world)
 {
 	renderCUDA<NUM_CHANNELS> << <grid, block >> >(
@@ -907,8 +831,6 @@ void BACKWARD::render(
 		cam_pos,
 		means2D,
 		normal_opacity,
-		cent,
-		gaussian_world,
 		transMats,
 		colors,
 		depths,
@@ -923,6 +845,5 @@ void BACKWARD::render(
 		dL_dnormal3D,
 		dL_dopacity,
 		dL_dcolors,
-		dL_dcent,
 		dL_dgaussian_world);
 }

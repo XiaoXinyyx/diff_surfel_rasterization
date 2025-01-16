@@ -21,7 +21,8 @@
 namespace BACKWARD
 {
 	void render(
-		const dim3 grid, dim3 block,
+		const dim3 grid,
+        const dim3 block,
 		const uint2* ranges,
 		const uint32_t* point_list,
 		int W, int H,
@@ -31,12 +32,8 @@ namespace BACKWARD
 		const float* cam_pos,
 		const float2* means2D,
 		const float4* normal_opacity,
-
-		const float* cent,
-		const float3* gaussian_world,
-
-		const float* transMats,
 		const float* colors,
+		const float* transMats,
 		const float* depths,
 		const float* final_Ts,
 		const uint32_t* n_contrib,
@@ -49,34 +46,32 @@ namespace BACKWARD
 		float* dL_dnormal3D,
 		float* dL_dopacity,
 		float* dL_dcolors,
-		float* dL_dcent,
 		float3* dL_dgaussian_world);
 
 	void preprocess(
-		int P, int D, int M,
-		const float3* means,
-		const int* radii,
-		const float* shs,
-		const bool* clamped,
-		const glm::vec2* scales,
-		const glm::vec4* rotations,
-		const float scale_modifier,
-		const float* transMats,
-		const float* view,
-		const float* proj,
-		const float focal_x, const float focal_y,
-		const float tan_fovx, const float tan_fovy,
-		const glm::vec3* campos,
-		float3* dL_dmean2D,
-		const float* dL_dnormal3D,
-		float* dL_dtransMat,
-		float* dL_dcolor,
-		float* dL_dcent,
-		float3* dL_dgaussian_world,
-		float* dL_dsh,
-		glm::vec3* dL_dmeans,
-		glm::vec2* dL_dscale,
-		glm::vec4* dL_drot);
+        int P, int D, int M,
+        const float3* means3D,
+        const int* radii,
+        const float* shs,
+        const bool* clamped,
+        const glm::vec2* scales,
+        const glm::vec4* rotations,
+        const float scale_modifier,
+        const float* transMats,
+        const float* viewmatrix,
+        const float* projmatrix,
+        const float focal_x, const float focal_y,
+        const float tan_fovx, const float tan_fovy,
+        const glm::vec3* campos, 
+        float3* dL_dmean2Ds,
+        const float* dL_dnormal3Ds,
+        float* dL_dtransMats,
+        float* dL_dcolors,
+        float3* dL_dgaussian_world,
+        float* dL_dshs,
+        glm::vec3* dL_dmean3Ds,
+        glm::vec2* dL_dscales,
+        glm::vec4* dL_drots);
 }
 
 #endif

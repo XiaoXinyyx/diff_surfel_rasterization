@@ -201,7 +201,6 @@ std::tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Te
   torch::Tensor dL_dcolors = torch::zeros({P, NUM_CHANNELS}, means3D.options());
   torch::Tensor dL_dnormal = torch::zeros({P, 3}, means3D.options());
 
-  torch::Tensor dL_dcent = torch::zeros({P, 1}, means3D.options());
   torch::Tensor dL_dgaussian_world = torch::zeros({P, 3}, means3D.options());
 
   torch::Tensor dL_dopacity = torch::zeros({P, 1}, means3D.options());
@@ -242,7 +241,6 @@ std::tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Te
 	  dL_dopacity.contiguous().data<float>(),
 	  dL_dcolors.contiguous().data<float>(),
 
-	  dL_dcent.contiguous().data<float>(),
 	  dL_dgaussian_world.contiguous().data<float>(),
 
 	  dL_dmeans3D.contiguous().data<float>(),
@@ -253,7 +251,8 @@ std::tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Te
 	  debug);
   }
 
-  return std::make_tuple(dL_dmeans2D, dL_dcolors, dL_dopacity, dL_dmeans3D, dL_dtransMat, dL_dsh, dL_dscales, dL_drotations);
+  return std::make_tuple(dL_dmeans2D, dL_dcolors, dL_dopacity, dL_dmeans3D,
+    dL_dtransMat, dL_dsh, dL_dscales, dL_drotations);
 }
 
 torch::Tensor markVisible(
