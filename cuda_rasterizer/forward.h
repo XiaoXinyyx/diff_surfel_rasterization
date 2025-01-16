@@ -45,8 +45,6 @@ namespace FORWARD
 		float* transMats,
 		float* colors,
 		float4* normal_opacity,
-		float* cent,
-		//传递数据
 		float3* gaussian_world,
 		const dim3 grid,
 		uint32_t* tiles_touched,

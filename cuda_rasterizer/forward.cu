@@ -101,7 +101,7 @@ __device__ void compute_transmat(
 		projmatrix[1], projmatrix[5], projmatrix[9], projmatrix[13],
 		projmatrix[2], projmatrix[6], projmatrix[10], projmatrix[14],
 		projmatrix[3], projmatrix[7], projmatrix[11], projmatrix[15]
-	);//这种方式得到的其实是projmatrix的转置
+	);
 
 	glm::mat3x4 ndc2pix = glm::mat3x4(
 		glm::vec4(float(W) / 2.0, 0.0, 0.0, float(W-1) / 2.0),
@@ -109,7 +109,7 @@ __device__ void compute_transmat(
 		glm::vec4(0.0, 0.0, 0.0, 1.0)
 	);
 
-	T = glm::transpose(splat2world) * world2ndc * ndc2pix;  //这个就是WH矩阵；可以由它从像素中心得到在高斯椭圆上的单应点
+	T = glm::transpose(splat2world) * world2ndc * ndc2pix;
 	normal = transformVec4x3({L[2].x, L[2].y, L[2].z}, viewmatrix);
 
 
@@ -171,8 +171,6 @@ __global__ void preprocessCUDA(int P, int D, int M,
 	float* transMats,
 	float* rgb,
 	float4* normal_opacity,
-	float* cent,
-	//传递数据
 	float3* gaussian_world,
 
 	const dim3 grid,
@@ -190,7 +188,7 @@ __global__ void preprocessCUDA(int P, int D, int M,
 
 	// Perform near culling, quit if outside.
 	float3 p_view;
-	if (!in_frustum(idx, orig_points, viewmatrix, projmatrix, prefiltered, p_view)) //这里的p_view是将高斯中心在世界坐标系下的坐标投影到图像平面所得到的坐标
+	if (!in_frustum(idx, orig_points, viewmatrix, projmatrix, prefiltered, p_view))
 		return;
 	
 	// Compute transformation matrix
@@ -253,52 +251,9 @@ __global__ void preprocessCUDA(int P, int D, int M,
 	depths[idx] = p_view.z;
 	radii[idx] = (int)radius;
 
-
-	//在这里根据尺度因子计算离心率
-	glm::vec2 scaleNow = scales[idx];
-
-    float a = std::max(scaleNow.x, scaleNow.y);
-    float b = std::min(scaleNow.x, scaleNow.y);
-	float c;
-
-	if (std::abs(a - b) < 1e-5) {
-        c = 0;
-    } else {
-        c = std::sqrt(a * a - b * b);
-    }
-
-    //float c = sqrt(a * a - b * b);
-
-    const float epsilon = 1e-6f;
-    cent[idx] = c/(a + epsilon);
-
-	// //计算高斯中心，像素中心，相机中心三者正对的所需数据
-	// glm::mat4 world2ndcglm = glm::mat4(
-	// 	projmatrix[0], projmatrix[4], projmatrix[8], projmatrix[12],
-	// 	projmatrix[1], projmatrix[5], projmatrix[9], projmatrix[13],
-	// 	projmatrix[2], projmatrix[6], projmatrix[10], projmatrix[14],
-	// 	projmatrix[3], projmatrix[7], projmatrix[11], projmatrix[15]
-	// );
-	// glm::mat4 ndc2worldGlm = glm::inverse(world2ndcglm);
-	// //按列优先存储,ndc坐标系到世界坐标系的变换矩阵
-	// ndc2world[0] = ndc2worldGlm[0][0], ndc2world[1] = ndc2worldGlm[1][0], ndc2world[2] = ndc2worldGlm[2][0], ndc2world[3] = ndc2worldGlm[3][0];
-	// ndc2world[4] = ndc2worldGlm[0][1], ndc2world[5] = ndc2worldGlm[1][1], ndc2world[6] = ndc2worldGlm[2][1], ndc2world[7] = ndc2worldGlm[3][1];
-	// ndc2world[8] = ndc2worldGlm[0][2], ndc2world[9] = ndc2worldGlm[1][2], ndc2world[10] = ndc2worldGlm[2][2], ndc2world[11] = ndc2worldGlm[3][2];
-	// ndc2world[12] = ndc2worldGlm[0][3], ndc2world[13] = ndc2worldGlm[1][3], ndc2world[14] = ndc2worldGlm[2][3], ndc2world[15] = ndc2worldGlm[3][3];
-
-
-
-	//高斯中心的世界坐标
+    // TODO: delete gaussian_world
 	float3 temp_gaussian = {orig_points[idx * 3 + 0], orig_points[idx * 3 + 1], orig_points[idx * 3 + 2]};
 	gaussian_world[idx] = temp_gaussian;
-
-	// //相机中心的世界坐标
-	// campos_world[0] = cam_pos.x;
-	// campos_world[1] = cam_pos.y;
-	// campos_world[2] = cam_pos.z;
-
-
-
 
 	points_xy_image[idx] = point_image;
 	normal_opacity[idx] = {normal.x, normal.y, normal.z, opacities[idx]};
@@ -642,8 +597,6 @@ void FORWARD::preprocess(int P, int D, int M,
 	float* transMats,
 	float* rgb,
 	float4* normal_opacity,
-	float* cent,
-	//传递数据
 	float3* gaussian_world,
 	const dim3 grid,
 	uint32_t* tiles_touched,
@@ -672,8 +625,6 @@ void FORWARD::preprocess(int P, int D, int M,
 		transMats,
 		rgb,
 		normal_opacity,
-		cent,
-		//传递数据
 		gaussian_world,
 		grid,
 		tiles_touched,

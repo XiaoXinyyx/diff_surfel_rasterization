@@ -163,9 +163,7 @@ CudaRasterizer::GeometryState CudaRasterizer::GeometryState::fromChunk(char*& ch
 	obtain(chunk, geom.normal_opacity, P, 128);
 	obtain(chunk, geom.rgb, P * 3, 128);
 
-	obtain(chunk, geom.cent, P, 128);
 	obtain(chunk, geom.gaussian_world, P, 128);
-	
 
 	obtain(chunk, geom.tiles_touched, P, 128);
 	cub::DeviceScan::InclusiveSum(nullptr, geom.scan_size, geom.tiles_touched, geom.tiles_touched, P);
@@ -258,7 +256,7 @@ int CudaRasterizer::Rasterizer::forward(
 	// Run preprocessing per-Gaussian (transformation, bounding, conversion of SHs to RGB)
 	CHECK_CUDA(FORWARD::preprocess(
 		P, D, M,
-		means3D,  //这个就是高斯中心的三维坐标
+		means3D,
 		(glm::vec2*)scales,
 		scale_modifier,
 		(glm::vec4*)rotations,
@@ -278,7 +276,6 @@ int CudaRasterizer::Rasterizer::forward(
 		geomState.transMat,
 		geomState.rgb,
 		geomState.normal_opacity,
-		geomState.cent,
 		geomState.gaussian_world,
 		tile_grid,
 		geomState.tiles_touched,
@@ -344,9 +341,7 @@ int CudaRasterizer::Rasterizer::forward(
 		transMat_ptr,
 		geomState.depths,
 		geomState.normal_opacity,
-
 		geomState.gaussian_world,
-
 		imgState.accum_alpha,
 		imgState.n_contrib,
 		background,
