@@ -275,18 +275,11 @@ renderCUDA(
 	const float* __restrict__ transMats,
 	const float* __restrict__ depths,
 	const float4* __restrict__ normal_opacity,  
-
 	const float3* __restrict__ gaussian_world,
-	
 	float* __restrict__ final_T,
 	uint32_t* __restrict__ n_contrib,  //要不直接在这里记录算了
 	const float* __restrict__ bg_color,
-
 	uint32_t* __restrict__ n_converge,
-
-	const float* __restrict__ ndc2world,
-	const float* __restrict__ cam_pos,
-
 	float* __restrict__ out_color,
 	float* __restrict__ out_others,
 	float* __restrict__ out_converge)
@@ -371,25 +364,6 @@ renderCUDA(
 		}
 		block.sync();
 
-		//在这里准备好相机中心和像素中心的坐标，并计算他们的方向向量
-		//glm::vec3 cam_posG = {campos_world[0], campos_world[1], campos_world[2]};
-		glm::vec3 cam_posG = {cam_pos[0], cam_pos[1], cam_pos[2]};
-		float znear = 0.01;
-		//像素中心的ndc坐标
-		glm::vec4 ndcP = {2.0 * pix.x / W - 1, 2.0 * pix.y / H - 1, znear, 1.0};
-		glm::mat4 ndc2worldP = glm::mat4(
-			ndc2world[0], ndc2world[4], ndc2world[8], ndc2world[12],
-			ndc2world[1], ndc2world[5], ndc2world[9], ndc2world[13],
-			ndc2world[2], ndc2world[6], ndc2world[10], ndc2world[14],
-			ndc2world[3], ndc2world[7], ndc2world[11], ndc2world[15]
-		);
-		//这里还是要看结果，可能要变成过像素中心的垂直于图像平面的单位向量
-		glm::vec4 pix_center = glm::transpose(ndc2worldP) * ndcP;
-		glm::vec3 pix_Center = {pix_center.x / pix_center.w, pix_center.y / pix_center.w, pix_center.z / pix_center.w};//齐次坐标转变为三维坐标
-		
-        // 光线的方向（世界空间）
-        glm::vec3 center2pix = pix_Center - cam_posG;
-		center2pix = center2pix / glm::length(center2pix);
 
 		// Iterate over current batch
 		for (int j = 0; !done && j < min(BLOCK_SIZE, toDo); j++)
@@ -438,7 +412,6 @@ renderCUDA(
 				continue;
 			}
 
-            // 记录最近的深度
             if (first_depth <= 0.0f) {
                 first_depth = depth;
             }
@@ -529,50 +502,43 @@ renderCUDA(
 }
 
 void FORWARD::render(
-	const dim3 grid, dim3 block,
-	const uint2* ranges,
-	const uint32_t* point_list,
-	int W, int H,
-	float focal_x, float focal_y,
-	const float2* means2D,
-	const float* colors,
-	const float* transMats,
-	const float* depths,
-	const float4* normal_opacity,
-	const float3* gaussian_world,
-
-	float* final_T,
-	uint32_t* n_contrib,
-	const float* bg_color,
-	uint32_t* n_converge,
-
-	const float* ndc2world,
-	const float* cam_pos,
-
-	float* out_color,
-	float* out_others,
-	float* out_converge)
+    const dim3 grid, dim3 block,
+    const uint2 *ranges,
+    const uint32_t *point_list,
+    int W, int H,
+    float focal_x, float focal_y,
+    const float2 *means2D,
+    const float *colors,
+    const float *transMats,
+    const float *depths,
+    const float4 *normal_opacity,
+    const float3 *gaussian_world,
+    float *final_T,
+    uint32_t *n_contrib,
+    const float *bg_color,
+    uint32_t *n_converge,
+    float *out_color,
+    float *out_others,
+    float *out_converge)
 {
-	renderCUDA<NUM_CHANNELS> << <grid, block >> > (
-		ranges,
-		point_list,
-		W, H,
-		focal_x, focal_y,
-		means2D,
-		colors,
-		transMats,
-		depths,
-		normal_opacity,
-		gaussian_world,
-		final_T,
-		n_contrib,
-		bg_color,
-		n_converge,
-		ndc2world,
-		cam_pos,
-		out_color,
-		out_others,
-		out_converge);
+    renderCUDA<NUM_CHANNELS><<<grid, block>>>(
+        ranges,
+        point_list,
+        W, H,
+        focal_x, focal_y,
+        means2D,
+        colors,
+        transMats,
+        depths,
+        normal_opacity,
+        gaussian_world,
+        final_T,
+        n_contrib,
+        bg_color,
+        n_converge,
+        out_color,
+        out_others,
+        out_converge);
 }
 
 void FORWARD::preprocess(int P, int D, int M,

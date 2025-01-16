@@ -28,8 +28,6 @@ namespace BACKWARD
 		int W, int H,
 		float focal_x, float focal_y,
 		const float* bg_color,
-		const float* ndc2world,
-		const float* cam_pos,
 		const float2* means2D,
 		const float4* normal_opacity,
 		const float* colors,

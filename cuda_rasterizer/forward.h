@@ -51,27 +51,25 @@ namespace FORWARD
 		bool prefiltered);
 
 	// Main rasterization method.
-	void render(
-		const dim3 grid, dim3 block,
-		const uint2* ranges,
-		const uint32_t* point_list,
-		int W, int H,
-		float focal_x, float focal_y,
-		const float2* points_xy_image,
-		const float* features,
-		const float* transMats,
-		const float* depths,
-		const float4* normal_opacity,
-		const float3* gaussian_world,
-		float* final_T,
-		uint32_t* n_contrib,
-		const float* bg_color,
-		uint32_t* n_converge,
-		const float* ndc2world,
-		const float* cam_pos,
-		float* out_color,
-		float* out_others,
-		float* out_converge);
+    void render(
+        const dim3 grid, dim3 block,
+        const uint2 *ranges,
+        const uint32_t *point_list,
+        int W, int H,
+        float focal_x, float focal_y,
+        const float2 *means2D,
+        const float *colors,
+        const float *transMats,
+        const float *depths,
+        const float4 *normal_opacity,
+        const float3 *gaussian_world,
+        float *final_T,
+        uint32_t *n_contrib,
+        const float *bg_color,
+        uint32_t *n_converge,
+        float *out_color,
+        float *out_others,
+        float *out_converge);
 }
 
 

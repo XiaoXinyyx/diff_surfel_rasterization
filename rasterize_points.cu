@@ -39,7 +39,6 @@ std::function<char*(size_t N)> resizeFunctional(torch::Tensor& t) {
 std::tuple<int, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor>
 RasterizeGaussiansCUDA(
 	const torch::Tensor& background,
-	const torch::Tensor& ndc2world,
 	const torch::Tensor& means3D,
 	const torch::Tensor& colors,
 	const torch::Tensor& opacity,
@@ -62,14 +61,12 @@ RasterizeGaussiansCUDA(
   if (means3D.ndimension() != 2 || means3D.size(1) != 3) {
 	AT_ERROR("means3D must have dimensions (num_points, 3)");
   }
-
   
   const int P = means3D.size(0);
   const int H = image_height;
   const int W = image_width;
 
   CHECK_INPUT(background);
-  CHECK_INPUT(ndc2world);
   CHECK_INPUT(means3D);
   CHECK_INPUT(colors);
   CHECK_INPUT(opacity);
@@ -115,7 +112,6 @@ RasterizeGaussiansCUDA(
 		imgFunc,
 		P, degree, M,
 		background.contiguous().data<float>(),
-		ndc2world.contiguous().data<float>(),
 		W, H,
 		means3D.contiguous().data<float>(),
 		sh.contiguous().data_ptr<float>(),
@@ -145,7 +141,6 @@ RasterizeGaussiansCUDA(
 std::tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor>
  RasterizeGaussiansBackwardCUDA(
 	const torch::Tensor& background,
-	const torch::Tensor& ndc2world,
 	const torch::Tensor& means3D,
 	const torch::Tensor& radii,
 	const torch::Tensor& colors,
@@ -169,9 +164,7 @@ std::tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Te
 	const torch::Tensor& imageBuffer,
 	const bool debug) 
 {
-
   CHECK_INPUT(background);
-  CHECK_INPUT(ndc2world);
   CHECK_INPUT(means3D);
   CHECK_INPUT(radii);
   CHECK_INPUT(colors);
@@ -210,7 +203,6 @@ std::tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Te
   {  
 	  CudaRasterizer::Rasterizer::backward(P, degree, M, R,
 	  background.contiguous().data<float>(),
-	  ndc2world.contiguous().data<float>(),
 	  W, H, 
 	  means3D.contiguous().data<float>(),
 	  sh.contiguous().data<float>(),
@@ -230,9 +222,7 @@ std::tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Te
 	  reinterpret_cast<char*>(imageBuffer.contiguous().data_ptr()),
 	  dL_dout_color.contiguous().data<float>(),
 	  dL_dout_others.contiguous().data<float>(),
-
 	  dL_dout_converge.contiguous().data<float>(),
-
 	  dL_dmeans2D.contiguous().data<float>(),
 	  dL_dnormal.contiguous().data<float>(),  
 	  dL_dopacity.contiguous().data<float>(),

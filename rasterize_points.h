@@ -18,11 +18,6 @@
 std::tuple<int, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor>
 RasterizeGaussiansCUDA(
 	const torch::Tensor& background,
-
-	//在这里输入ndc2world的逆变换矩阵
-	const torch::Tensor& ndc2world,
-
-
 	const torch::Tensor& means3D,
 	const torch::Tensor& colors,
 	const torch::Tensor& opacity,
@@ -45,7 +40,6 @@ RasterizeGaussiansCUDA(
 std::tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor>
  RasterizeGaussiansBackwardCUDA(
 	const torch::Tensor& background,
-	const torch::Tensor& ndc2world,
 	const torch::Tensor& means3D,
 	const torch::Tensor& radii,
 	const torch::Tensor& colors,

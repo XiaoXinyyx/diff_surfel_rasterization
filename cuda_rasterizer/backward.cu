@@ -148,8 +148,6 @@ renderCUDA(
 	int W, int H,
 	float focal_x, float focal_y,
 	const float* __restrict__ bg_color,
-	const float* __restrict__ ndc2world,
-	const float* __restrict__ cam_pos,
 	const float2* __restrict__ points_xy_image,
 	const float4* __restrict__ normal_opacity,
 	const float* __restrict__ transMats,
@@ -196,7 +194,7 @@ renderCUDA(
 	// In the forward, we stored the final value for T, the
 	// product of all (1 - alpha) factors. 
 	const float T_final = inside ? final_Ts[pix_id] : 0;
-	float T = T_final;  //所有的(1-alpha)连乘的结果
+	float T = T_final;
 
 	// We start from the back. The ID of the last contributing
 	// Gaussian is known from each pixel from the forward.
@@ -259,7 +257,7 @@ renderCUDA(
 		// Load auxiliary data into shared memory, start in the BACK
 		// and load them in revers order.
 		block.sync();
-		const int progress = i * BLOCK_SIZE + block.thread_rank(); //确实是把数据倒序加载
+		const int progress = i * BLOCK_SIZE + block.thread_rank();
 		if (range.x + progress < range.y)
 		{
 			const int coll_id = point_list[range.y - progress - 1];
@@ -275,28 +273,8 @@ renderCUDA(
 		}
 		block.sync();
 
-
-		//在这里准备好相机中心和像素中心的坐标，并计算他们的方向向量
-		//glm::vec3 cam_posG = {campos_world[0], campos_world[1], campos_world[2]};
-		glm::vec3 cam_posG = {cam_pos[0], cam_pos[1], cam_pos[2]};
-		float znear = 0.01;
-		//像素中心的ndc坐标
-		glm::vec4 ndcP = {2.0 * pix.x / W - 1, 2.0 * pix.y / H - 1, znear, 1.0};
-		glm::mat4 ndc2worldP = glm::mat4(
-			ndc2world[0], ndc2world[4], ndc2world[8], ndc2world[12],
-			ndc2world[1], ndc2world[5], ndc2world[9], ndc2world[13],
-			ndc2world[2], ndc2world[6], ndc2world[10], ndc2world[14],
-			ndc2world[3], ndc2world[7], ndc2world[11], ndc2world[15]
-		);
-		glm::vec4 pix_center = glm::transpose(ndc2worldP) * ndcP;
-		glm::vec3 pix_Center = {pix_center.x / pix_center.w, pix_center.y / pix_center.w, pix_center.z / pix_center.w};//齐次坐标转变为三维坐标
-		
-        // 光线的方向
-        glm::vec3 center2pix = pix_Center - cam_posG;
-		center2pix = center2pix / glm::length(center2pix); //转变为单位向量
-
 		// Iterate over Gaussians
-		for (int j = 0; !done && j < min(BLOCK_SIZE, toDo); j++)  //确实是从后往前
+		for (int j = 0; !done && j < min(BLOCK_SIZE, toDo); j++)
 		{
 			// Keep track of current Gaussian ID. Skip, if this one
 			// is behind the last contributor for this pixel.
@@ -326,8 +304,6 @@ renderCUDA(
 			float4 nor_o = collected_normal_opacity[j];
 			float normal[3] = {nor_o.x, nor_o.y, nor_o.z};
 			float opa = nor_o.w;
-
-			// accumulations
 
 			float power = -0.5f * rho;
 			if (power > 0.0f)
@@ -784,8 +760,6 @@ void BACKWARD::render(
 	int W, int H,
 	float focal_x, float focal_y,
 	const float* bg_color,
-	const float* ndc2world,
-	const float* cam_pos,
 	const float2* means2D,
 	const float4* normal_opacity,
 	const float* colors,
@@ -809,8 +783,6 @@ void BACKWARD::render(
 		W, H,
 		focal_x, focal_y,
 		bg_color,
-		ndc2world,
-		cam_pos,
 		means2D,
 		normal_opacity,
 		transMats,

@@ -205,9 +205,6 @@ int CudaRasterizer::Rasterizer::forward(
 	std::function<char* (size_t)> imageBuffer,
 	const int P, int D, int M,
 	const float* background,
-
-	const float* ndc2world,
-
 	const int width, int height,
 	const float* means3D,
 	const float* shs,
@@ -345,12 +342,7 @@ int CudaRasterizer::Rasterizer::forward(
 		imgState.accum_alpha,
 		imgState.n_contrib,
 		background,
-
 		imgState.n_converge,
-
-		ndc2world,
-		cam_pos,
-
 		out_color,
 		out_others,
         out_converge), debug)
@@ -363,7 +355,6 @@ int CudaRasterizer::Rasterizer::forward(
 void CudaRasterizer::Rasterizer::backward(
 	const int P, int D, int M, int R,
 	const float* background,
-	const float* ndc2world,
 	const int width, int height,
 	const float* means3D,
 	const float* shs,
@@ -423,8 +414,6 @@ void CudaRasterizer::Rasterizer::backward(
 		width, height,
 		focal_x, focal_y,
 		background,
-		ndc2world,
-		campos,
 		geomState.means2D,
 		geomState.normal_opacity,
 		color_ptr,
