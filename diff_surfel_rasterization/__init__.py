@@ -108,7 +108,6 @@ class _RasterizeGaussians(torch.autograd.Function):
 
         # Restructure args as C++ method expects them
         args = (raster_settings.bg,
-                raster_settings.ndc2world,
                 means3D, 
                 radii, 
                 colors_precomp, 
