@@ -404,8 +404,8 @@ renderCUDA(
 			float dL_dweight = 0;
 #if RENDER_AXUTILITY
 			const float m_d = far_n / (far_n - near_n) * (1 - near_n / c_d);  
-			const float dmd_dd = (far_n * near_n) / ((far_n - near_n) * c_d * c_d); // m 对 depth 的梯度
-			// median_depth 对深度产生的梯度
+			const float dmd_dd = (far_n * near_n) / ((far_n - near_n) * c_d * c_d);
+			// gradient of depth
             if (contributor == median_contributor - 1) {
 				dL_dz += dL_dmedian_depth;
 			}
@@ -414,7 +414,6 @@ renderCUDA(
 			// it will bia toward creating extragated 2D Gaussians near front
 			dL_dweight += 0;
 #else
-            // dL_dreg : Loss 对 distortion 的梯度
 			dL_dweight += (final_D2 + m_d * m_d * final_A - 2 * m_d * final_D) * dL_dreg;
 #endif
 			dL_dalpha += dL_dweight - last_dL_dT;
@@ -437,7 +436,7 @@ renderCUDA(
 			// Propagate gradients to per-Gaussian normals
 			for (int ch = 0; ch < 3; ch++) {
 				accum_normal_rec[ch] = last_alpha * last_normal[ch] + (1.f - last_alpha) * accum_normal_rec[ch];
-				last_normal[ch] = normal[ch]; // 更新 last_normal
+				last_normal[ch] = normal[ch]; // update last_normal
 				dL_dalpha += (normal[ch] - accum_normal_rec[ch]) * dL_dnormal2D[ch];
 				atomicAdd((&dL_dnormal3D[global_id * 3 + ch]), alpha * T * dL_dnormal2D[ch]);
 			}
@@ -458,7 +457,7 @@ renderCUDA(
 			// Helpful reusable temporary variables
 			const float dL_dG = nor_o.w * dL_dalpha;
 #if RENDER_AXUTILITY
-			dL_dz += alpha * T * dL_ddepth; // dL-ddepth 为 python 代码中 render_depth_expected 的梯度
+			dL_dz += alpha * T * dL_ddepth; // gradient of render_depth_expected
 #endif
 
 			if (rho3d <= rho2d) {
@@ -466,7 +465,7 @@ renderCUDA(
 				const float2 dL_ds = {
 					dL_dG * -G * s.x + dL_dz * Tw.x,
 					dL_dG * -G * s.y + dL_dz * Tw.y
-				};  //由power，depth的梯度传给s
+				};
 				const float3 dz_dTw = {s.x, s.y, 1.0};
 				const float dsx_pz = dL_ds.x / p.z;
 				const float dsy_pz = dL_ds.y / p.z;

@@ -277,7 +277,7 @@ renderCUDA(
 	const float4* __restrict__ normal_opacity,  
 	const float3* __restrict__ gaussian_world,
 	float* __restrict__ final_T,
-	uint32_t* __restrict__ n_contrib,  //要不直接在这里记录算了
+	uint32_t* __restrict__ n_contrib,
 	const float* __restrict__ bg_color,
 	uint32_t* __restrict__ n_converge,
 	float* __restrict__ out_color,
@@ -289,7 +289,7 @@ renderCUDA(
 	uint32_t horizontal_blocks = (W + BLOCK_X - 1) / BLOCK_X;
 	uint2 pix_min = { block.group_index().x * BLOCK_X, block.group_index().y * BLOCK_Y };
 	uint2 pix_max = { min(pix_min.x + BLOCK_X, W), min(pix_min.y + BLOCK_Y , H) };
-	//这个是像素坐标
+	// pixel coordinate
 	uint2 pix = { pix_min.x + block.thread_index().x, pix_min.y + block.thread_index().y };
 	uint32_t pix_id = W * pix.y + pix.x;
 	float2 pixf = { (float)pix.x, (float)pix.y};
@@ -329,17 +329,13 @@ renderCUDA(
 	float M2 = {0};
 	float distortion = {0};
 	float median_depth = {0};
-
 	// float median_weight = {0};
 	float median_contributor = 0;
-
 	float Converge = 0;
     float first_depth = 0;
 	float last_depth = 0;
     float last_G = 0;
-
-    float cover_rate = 0; // 覆盖率
-
+    float cum_opacity = 0;
 #endif
 
 	// Iterate over batches until all done or range is complete
@@ -427,22 +423,19 @@ renderCUDA(
 			M1 += m * w;
 			M2 += m * m * w;
 
-            // TODO median_depth
+            // median_depth in paper "2d gaussian splatting"
             // if (T > 0.5) {
             //     median_depth = depth;
             //     median_contributor = contributor;
             // }
 
-            //利用 cover_rate 计算深度图
-            if (cover_rate < 0.6) { // TODO: MTU 0.6 此阈值越大，判定的深度越大
-                // DTU 数据集上取平均
-                median_depth = last_depth > 0 ? (last_depth + depth) * 0.5 : depth; // 简单去一下噪
-                //median_depth = depth;
-
+            // Cumulated opacity. Eq. (9) from paper Unbiased 2DGS.
+            if (cum_opacity < 0.6) {
+                // Make the depth map smoother
+                median_depth = last_depth > 0 ? (last_depth + depth) * 0.5 : depth;
                 median_contributor = contributor;
             }
-            //常数用来控制数量的影响，此值越小，判定表面时需要的高斯就越多
-            cover_rate += (alpha + 0.1 * G); 
+            cum_opacity += (alpha + 0.1 * G); 
 
 			// Render normal map
 			for (int ch=0; ch<3; ch++) N[ch] += normal[ch] * w;
@@ -453,11 +446,8 @@ renderCUDA(
 				C[ch] += features[collected_id[j] * CHANNELS + ch] * w;
 
 			// Converge Loss
-			if((T > 0.09f)){ //  && (depth - first_depth) <= 0.06
-				if(last_converge == 0) {
-                    // 跳过第一个高斯
-				}
-				else{
+			if((T > 0.09f)) {
+				if(last_converge > 0) {
                     Converge += abs(depth - last_depth) > ConvergeThreshold ?
                         0 : min(G, last_G) * (depth - last_depth) * (depth - last_depth);
 				}
@@ -466,7 +456,6 @@ renderCUDA(
 			}
 
  			T = test_T;
-
             last_depth = depth;
 
 			// Keep track of last range entry to update this pixel.
@@ -479,7 +468,7 @@ renderCUDA(
 	if (inside)
 	{
 		final_T[pix_id] = T;
-		n_contrib[pix_id] = last_contributor;  //一直记录到最后一个起作用的高斯的index
+		n_contrib[pix_id] = last_contributor;  // index of the last effective gaussian
 		n_converge[pix_id] = last_converge;
 
 		for (int ch = 0; ch < CHANNELS; ch++)
@@ -489,8 +478,8 @@ renderCUDA(
 		n_contrib[pix_id + H * W] = median_contributor;
 		final_T[pix_id + H * W] = M1;
 		final_T[pix_id + 2 * H * W] = M2;
-		out_others[pix_id + DEPTH_OFFSET * H * W] = D;       // 用于快速计算 distortion
-		out_others[pix_id + ALPHA_OFFSET * H * W] = 1 - T;   // 1-T 应接近于1
+		out_others[pix_id + DEPTH_OFFSET * H * W] = D;
+		out_others[pix_id + ALPHA_OFFSET * H * W] = 1 - T;   // 1-T should close to 1
 		for (int ch=0; ch<3; ch++) out_others[pix_id + (NORMAL_OFFSET+ch) * H * W] = N[ch];
 		out_others[pix_id + MIDDEPTH_OFFSET * H * W] = median_depth;
 		out_others[pix_id + DISTORTION_OFFSET * H * W] = distortion;
