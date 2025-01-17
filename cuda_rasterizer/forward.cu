@@ -171,8 +171,6 @@ __global__ void preprocessCUDA(int P, int D, int M,
 	float* transMats,
 	float* rgb,
 	float4* normal_opacity,
-	float3* gaussian_world,
-
 	const dim3 grid,
 	uint32_t* tiles_touched,
 	bool prefiltered)
@@ -250,11 +248,6 @@ __global__ void preprocessCUDA(int P, int D, int M,
 
 	depths[idx] = p_view.z;
 	radii[idx] = (int)radius;
-
-    // TODO: delete gaussian_world
-	float3 temp_gaussian = {orig_points[idx * 3 + 0], orig_points[idx * 3 + 1], orig_points[idx * 3 + 2]};
-	gaussian_world[idx] = temp_gaussian;
-
 	points_xy_image[idx] = point_image;
 	normal_opacity[idx] = {normal.x, normal.y, normal.z, opacities[idx]};
 	tiles_touched[idx] = (rect_max.y - rect_min.y) * (rect_max.x - rect_min.x);
@@ -275,7 +268,6 @@ renderCUDA(
 	const float* __restrict__ transMats,
 	const float* __restrict__ depths,
 	const float4* __restrict__ normal_opacity,  
-	const float3* __restrict__ gaussian_world,
 	float* __restrict__ final_T,
 	uint32_t* __restrict__ n_contrib,
 	const float* __restrict__ bg_color,
@@ -501,7 +493,6 @@ void FORWARD::render(
     const float *transMats,
     const float *depths,
     const float4 *normal_opacity,
-    const float3 *gaussian_world,
     float *final_T,
     uint32_t *n_contrib,
     const float *bg_color,
@@ -520,7 +511,6 @@ void FORWARD::render(
         transMats,
         depths,
         normal_opacity,
-        gaussian_world,
         final_T,
         n_contrib,
         bg_color,
@@ -552,7 +542,6 @@ void FORWARD::preprocess(int P, int D, int M,
 	float* transMats,
 	float* rgb,
 	float4* normal_opacity,
-	float3* gaussian_world,
 	const dim3 grid,
 	uint32_t* tiles_touched,
 	bool prefiltered)
@@ -580,7 +569,6 @@ void FORWARD::preprocess(int P, int D, int M,
 		transMats,
 		rgb,
 		normal_opacity,
-		gaussian_world,
 		grid,
 		tiles_touched,
 		prefiltered

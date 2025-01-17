@@ -162,9 +162,6 @@ CudaRasterizer::GeometryState CudaRasterizer::GeometryState::fromChunk(char*& ch
 	obtain(chunk, geom.transMat, P * 9, 128);
 	obtain(chunk, geom.normal_opacity, P, 128);
 	obtain(chunk, geom.rgb, P * 3, 128);
-
-	obtain(chunk, geom.gaussian_world, P, 128);
-
 	obtain(chunk, geom.tiles_touched, P, 128);
 	cub::DeviceScan::InclusiveSum(nullptr, geom.scan_size, geom.tiles_touched, geom.tiles_touched, P);
 	obtain(chunk, geom.scanning_space, geom.scan_size, 128);
@@ -273,7 +270,6 @@ int CudaRasterizer::Rasterizer::forward(
 		geomState.transMat,
 		geomState.rgb,
 		geomState.normal_opacity,
-		geomState.gaussian_world,
 		tile_grid,
 		geomState.tiles_touched,
 		prefiltered
@@ -338,7 +334,6 @@ int CudaRasterizer::Rasterizer::forward(
 		transMat_ptr,
 		geomState.depths,
 		geomState.normal_opacity,
-		geomState.gaussian_world,
 		imgState.accum_alpha,
 		imgState.n_contrib,
 		background,
